@@ -111,6 +111,9 @@ type Controller interface {
 	// LastSyncResourceVersion delegates to the Reflector when there
 	// is one, otherwise returns the empty string
 	LastSyncResourceVersion() string
+
+  // Add workqueue directly
+	InjectWorkerQueue(obj interface{})
 }
 
 // New makes a new Controller from the given Config.
@@ -131,29 +134,39 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 		<-stopCh
 		c.config.Queue.Close()
 	}()
-	r := NewReflector(
-		c.config.ListerWatcher,
-		c.config.ObjectType,
-		c.config.Queue,
-		c.config.FullResyncPeriod,
-	)
-	r.ShouldResync = c.config.ShouldResync
-	r.WatchListPageSize = c.config.WatchListPageSize
-	r.clock = c.clock
-	if c.config.WatchErrorHandler != nil {
-		r.watchErrorHandler = c.config.WatchErrorHandler
-	}
+//	r := NewReflector(
+//		c.config.ListerWatcher,
+//		c.config.ObjectType,
+//		c.config.Queue,
+//		c.config.FullResyncPeriod,
+//	)
+//	r.ShouldResync = c.config.ShouldResync
+//	r.WatchListPageSize = c.config.WatchListPageSize
+//	r.clock = c.clock
+//	if c.config.WatchErrorHandler != nil {
+//		r.watchErrorHandler = c.config.WatchErrorHandler
+//	}
 
-	c.reflectorMutex.Lock()
-	c.reflector = r
-	c.reflectorMutex.Unlock()
+//	c.reflectorMutex.Lock()
+//	c.reflector = r
+//	c.reflectorMutex.Unlock()
 
-	var wg wait.Group
+//	var wg wait.Group
 
-	wg.StartWithChannel(stopCh, r.Run)
+//	wg.StartWithChannel(stopCh, r.Run)
 
 	wait.Until(c.processLoop, time.Second, stopCh)
-	wg.Wait()
+//	wg.Wait()
+}
+
+func (c *controller) InjectWorkerQueue(obj interface{}) {
+	var deltas Deltas
+	delta := Delta{
+		Type: "Injected",
+		Object: obj,
+	}
+	deltas = append(deltas, delta)
+	c.config.Process(deltas)
 }
 
 // Returns true once this controller has completed an initial resource listing
@@ -407,6 +420,37 @@ func NewTransformingIndexerInformer(
 	return clientState, newInformer(lw, objType, resyncPeriod, h, clientState, transformer)
 }
 
+// customizing processDeltas
+func processPrivateDeltas(
+	handler ResourceEventHandler,
+	clientState Store,
+	deltas Deltas,
+) error {
+	for _, d := range deltas {
+		obj := d.Object
+		switch d.Type {
+		case Sync, Replaced, Added, Updated, Injected:
+			if old, exists, err := clientState.Get(obj); err == nil && exists {
+				if err := clientState.Update(obj); err != nil {
+					return err
+				}
+				handler.OnUpdate(old, obj)
+			} else {
+				if err := clientState.Add(obj); err != nil {
+					return err
+				}
+				handler.OnAdd(obj)
+			}
+		case Deleted:
+			if err := clientState.Delete(obj); err != nil {
+				return err
+			}
+			handler.OnDelete(obj)
+		}
+	}
+	return nil
+}
+
 // Multiplexes updates in the form of a list of Deltas into a Store, and informs
 // a given handler of events OnUpdate, OnAdd, OnDelete
 func processDeltas(
@@ -489,7 +533,8 @@ func newInformer(
 
 		Process: func(obj interface{}) error {
 			if deltas, ok := obj.(Deltas); ok {
-				return processDeltas(h, clientState, transformer, deltas)
+//				return processDeltas(h, clientState, transformer, deltas)
+				return processPrivateDeltas(h, clientState, deltas)
 			}
 			return errors.New("object given as Process argument is not Deltas")
 		},

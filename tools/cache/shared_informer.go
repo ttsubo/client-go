@@ -357,6 +357,9 @@ func (v *dummyController) LastSyncResourceVersion() string {
 	return ""
 }
 
+func (v *dummyController) InjectWorkerQueue(obj interface{}) {
+}
+
 type updateNotification struct {
 	oldObj interface{}
 	newObj interface{}

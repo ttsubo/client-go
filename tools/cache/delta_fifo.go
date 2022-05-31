@@ -139,6 +139,7 @@ const (
 	Added   DeltaType = "Added"
 	Updated DeltaType = "Updated"
 	Deleted DeltaType = "Deleted"
+	Injected DeltaType = "Injected"
 	// Replaced is emitted when we encountered watch errors and had to do a
 	// relist. We don't know if the replaced object has changed.
 	//

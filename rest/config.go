@@ -30,14 +30,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ttsubo/client-go/pkg/version"
+	clientcmdapi "github.com/ttsubo/client-go/tools/clientcmd/api"
+	"github.com/ttsubo/client-go/transport"
+	certutil "github.com/ttsubo/client-go/util/cert"
+	"github.com/ttsubo/client-go/util/flowcontrol"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/pkg/version"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/client-go/transport"
-	certutil "k8s.io/client-go/util/cert"
-	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog/v2"
 )
 
